@@ -11,7 +11,7 @@ async navigate() { // Navega para a página inicial
   await this.page.goto('https://demo.nopcommerce.com/build-your-own-computer');
   }
 
-async biuld() { // 
+async build() { // 
   await this.page.selectOption('#product_attribute_1', { value: '2' }); // Seleciona o processador
   await this.page.selectOption('#product_attribute_2', { value: '5' }); // Seleciona a RAM
   await this.page.check('input[name="product_attribute_3"][value="7"]'); // Seleciona o HDD

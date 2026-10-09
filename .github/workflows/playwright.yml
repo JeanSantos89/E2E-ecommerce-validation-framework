@@ -5,7 +5,22 @@ on:
   pull_request:
     branches: [ main, master ]
 jobs:
-  test:
+  typecheck:
+    name: Typecheck (TypeScript gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Install dependencies
+        run: npm ci
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
+  e2e:
+    name: E2E Tests (quality gate)
+    needs: typecheck
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:

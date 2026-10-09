@@ -128,3 +128,19 @@ Execute os testes:
 
 Para ver o relatório de testes:
     **npx playwright show-report**
+
+Para checar os tipos TypeScript (mesmo gate rodado no CI):
+    **npm run typecheck**
+
+---
+
+## 9. Gate de Qualidade (CI)
+
+O workflow `.github/workflows/playwright.yml` roda em todo push/PR para `main`/`master` com dois jobs:
+
+* **typecheck** — valida o TypeScript do projeto (`tsc --noEmit`). Rápido e determinístico.
+* **e2e** — instala os browsers do Playwright e roda a suíte completa (Chromium, Firefox, WebKit) contra o site demo real do nopCommerce. Falha o build se qualquer teste falhar.
+
+Este projeto não tem testes de API/backend — é 100% E2E de UI, então não há um gate separado de backend.
+
+**Limitação conhecida:** o site demo (`demo.nopcommerce.com`) é um serviço público de terceiros, fora do controle deste repositório. Ele pode ficar fora do ar, mudar de layout ou, como observado durante esta revisão, bloquear tráfego automatizado atrás de um desafio do Cloudflare ("Performing security verification"), dependendo da rede de onde o teste roda. Se o job `e2e` falhar, confira o relatório (`playwright-report`) antes de assumir regressão de código.
