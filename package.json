@@ -6,7 +6,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "audit:test-quality": "tsc scripts/audit-test-quality.ts --outDir .tmp-audit --module commonjs --target ES2021 --esModuleInterop --skipLibCheck && node .tmp-audit/audit-test-quality.js"
   },
   "keywords": [],
   "author": "",

@@ -136,11 +136,27 @@ Para checar os tipos TypeScript (mesmo gate rodado no CI):
 
 ## 9. Gate de Qualidade (CI)
 
-O workflow `.github/workflows/playwright.yml` roda em todo push/PR para `main`/`master` com dois jobs:
+O workflow `.github/workflows/playwright.yml` roda em todo push/PR para `main`/`master` com três jobs:
 
 * **typecheck** — valida o TypeScript do projeto (`tsc --noEmit`). Rápido e determinístico.
+* **assert-quality-audit** — audita os próprios testes (ver seção 10 abaixo). Rápido, determinístico e não depende de nenhum site externo.
 * **e2e** — instala os browsers do Playwright e roda a suíte completa (Chromium, Firefox, WebKit) contra o site demo real do nopCommerce. Falha o build se qualquer teste falhar.
 
 Este projeto não tem testes de API/backend — é 100% E2E de UI, então não há um gate separado de backend.
 
 **Limitação conhecida:** o site demo (`demo.nopcommerce.com`) é um serviço público de terceiros, fora do controle deste repositório. Ele pode ficar fora do ar, mudar de layout ou, como observado durante esta revisão, bloquear tráfego automatizado atrás de um desafio do Cloudflare ("Performing security verification"), dependendo da rede de onde o teste roda. Se o job `e2e` falhar, confira o relatório (`playwright-report`) antes de assumir regressão de código.
+
+## 10. Auditoria Estática dos Testes (`assert-quality-audit`)
+
+O job `e2e` prova que o site funciona, mas não prova que o TESTE prova alguma coisa. Um teste pode passar sem checar nada — bloco sem nenhum `expect`, ou um `expect` tautológico tipo `expect(x).toBe(x)` ou `expect(true).toBeTruthy()`. Isso é "verde mentiroso": o CI fica verde, mas não protege contra regressão nenhuma.
+
+`scripts/audit-test-quality.ts` varre `tests/**/*.spec.ts` e falha (exit 1) se encontrar:
+
+* um bloco `test(...)`/`it(...)` sem nenhuma chamada `expect(...)` — nem direta, nem indireta através de um método de `pages/*.ts` que por sua vez tenha `expect(...)`. O projeto usa Page Object, então o script entende esse padrão: `TC01` não tem `expect` no corpo do teste, mas chama `checkSuccessMessage()`, que tem — não é um falso positivo.
+* um assert tautológico óbvio: os dois lados de `toBe`/`toEqual`/`toStrictEqual` idênticos, ou `expect(true).toBe(true)` / `expect(true).toBeTruthy()`.
+
+Rode localmente com:
+
+    **npm run audit:test-quality**
+
+**Por que esse gate é mais confiável que o `e2e` neste repositório, especificamente:** o `e2e` depende do site de terceiro (`demo.nopcommerce.com`) estar no ar e não bloquear a automação atrás do Cloudflare — coisa que já aconteceu e está documentada na seção 9. Quando isso acontece, o job `e2e` fica vermelho (ou falha de um jeito que não tem nada a ver com o código deste repo), e não dá para confiar nele como sinal de qualidade naquele momento. Já o `assert-quality-audit` só lê arquivos locais (`tests/` e `pages/`) — não abre navegador, não faz requisição de rede, não depende de nenhum serviço externo. Ele roda sempre, com o mesmo resultado, e continua sendo um sinal de qualidade válido mesmo quando o `e2e` está bloqueado pela rede ou pelo site de terceiro.

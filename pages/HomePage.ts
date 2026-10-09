@@ -53,6 +53,7 @@ async buyFromWishlist(){
 
 async checkOut(){
   await this.page.locator('#checkout').click();
+  await expect(this.page).toHaveURL(/checkout/);
 }
 
 async checkErrorObrigatory(){
