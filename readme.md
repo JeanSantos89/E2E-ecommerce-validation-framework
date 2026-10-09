@@ -138,13 +138,25 @@ Para checar os tipos TypeScript (mesmo gate rodado no CI):
 
 O workflow `.github/workflows/playwright.yml` roda em todo push/PR para `main`/`master` com três jobs:
 
-* **typecheck** — valida o TypeScript do projeto (`tsc --noEmit`). Rápido e determinístico.
-* **assert-quality-audit** — audita os próprios testes (ver seção 10 abaixo). Rápido, determinístico e não depende de nenhum site externo.
-* **e2e** — instala os browsers do Playwright e roda a suíte completa (Chromium, Firefox, WebKit) contra o site demo real do nopCommerce. Falha o build se qualquer teste falhar.
+* **typecheck** — valida o TypeScript do projeto (`tsc --noEmit`). Rápido, determinístico, **gate obrigatório**.
+* **assert-quality-audit** — audita os próprios testes (ver seção 10 abaixo). Rápido, determinístico, não depende de nenhum site externo, **gate obrigatório**.
+* **e2e** — instala os browsers do Playwright e roda a suíte completa (Chromium, Firefox, WebKit) contra o site demo real do nopCommerce. **Não bloqueia o workflow** (`continue-on-error: true`): é best-effort, não um gate real.
 
 Este projeto não tem testes de API/backend — é 100% E2E de UI, então não há um gate separado de backend.
 
-**Limitação conhecida:** o site demo (`demo.nopcommerce.com`) é um serviço público de terceiros, fora do controle deste repositório. Ele pode ficar fora do ar, mudar de layout ou, como observado durante esta revisão, bloquear tráfego automatizado atrás de um desafio do Cloudflare ("Performing security verification"), dependendo da rede de onde o teste roda. Se o job `e2e` falhar, confira o relatório (`playwright-report`) antes de assumir regressão de código.
+### Por que o `e2e` não é um gate obrigatório
+
+O site demo (`demo.nopcommerce.com`) é um serviço público de terceiros, fora do controle deste repositório. Em 08/10/2026, confirmamos de 5 formas diferentes que ele bloqueia automação atrás de proteção anti-bot da Cloudflare: headless, headed, com plugin stealth, com user-agent de navegador real, e esperando 30s antes de interagir — todas bloqueadas. Ou seja, o job falha por causa da proteção do site, não por bug do código deste repo nem dos testes.
+
+A correção de causa raiz correta seria rodar uma instância própria do nopCommerce (self-host) dentro do próprio CI, eliminando a dependência do terceiro. Investigamos essa opção e descartamos por desproporção de escopo:
+
+* O nopCommerce não tem imagem Docker oficial. As imagens que existem no Docker Hub são de terceiros, não oficiais, descontinuadas (a mais conhecida está presa na tag `release-4.20`, de ~7 anos atrás) e explicitamente marcadas como "não use em produção".
+* O nopCommerce não roda sobre SQLite — ele depende de SQL Server, MySQL ou PostgreSQL como banco. Isso significa pelo menos dois containers (app + banco), mais o processo de instalação/migração do schema, mais popular o catálogo com os produtos exatos que os testes esperam (o "Build your own computer" com seus atributos). Nada disso sobe "pronto" — é uma instalação completa de e-commerce rodando dentro do job de CI.
+* Para um projeto de portfólio, o custo (tempo de setup, manutenção da imagem, tempo de subida em cada run) é desproporcional ao benefício. O ganho real de QA aqui vem dos gates que já são determinísticos e baratos (`typecheck` e `assert-quality-audit`).
+
+Por isso a escolha foi: **não fingir que o E2E real está testado quando a rede bloqueia o teste**. O job `e2e` continua existindo e rodando a suíte de verdade — ele serve como sinal informativo (se o site estiver acessível e sem bloqueio, ele prova o fluxo de ponta a ponta) — mas não derruba o workflow nem é tratado como critério de aceite. Os gates reais deste repositório são `typecheck` e `assert-quality-audit`.
+
+Se o site demo estiver fora do ar, mudar de layout, ou bloquear a automação atrás de um desafio do Cloudflare ("Performing security verification"), confira o relatório (`playwright-report`) antes de assumir regressão de código — e lembre que, de qualquer forma, isso não derruba o build.
 
 ## 10. Auditoria Estática dos Testes (`assert-quality-audit`)
 
